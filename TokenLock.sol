@@ -22,24 +22,24 @@ contract TokenLock is ReentrancyGuard {
     uint public constant STAKING_PERIOD = 4 * 30 days;
     address public admin; 
     bool public paused; 
-    IERC20 private immutable _GRAV;
-    IERC20 private immutable _xGRAV;
+    
+    IERC20 private constant _TOKEN = IERC20(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
+    IERC20 private constant _xTOKEN = IERC20(0x17F6AD8Ef982297579C203069C1DbfFE4348c372);
     
     mapping (uint => StakeInfo) private _idToStakeInfo; 
     
-    modifier adminOnly {
+    modifier adminOnly() {
         require(msg.sender == admin);
         _;
     }
-    modifier notPaused {
+    
+    modifier notPaused() {
         require(paused == false);
         _;
     }
 
-    constructor(address _admin, address _grav, address _xgrav) {
+    constructor(address _admin) {
         admin = _admin; 
-        _GRAV = IERC20(_grav);
-        _xGRAV = IERC20(_xgrav);
     }
 
     function lockTokens(uint _amount) external nonReentrant notPaused returns (uint lockId) {
@@ -53,7 +53,7 @@ contract TokenLock is ReentrancyGuard {
             unstaked: false
         });
 
-        _xGRAV.safeTransferFrom(msg.sender, address(this), _amount);
+        _xTOKEN.safeTransferFrom(msg.sender, address(this), _amount);
     } 
 
     function getStakeInfo(uint _id) external view returns (StakeInfo memory) {
@@ -68,11 +68,11 @@ contract TokenLock is ReentrancyGuard {
         require(!stakeInfo.unstaked);
         stakeInfo.unstaked = true;
 
-        _GRAV.safeTransfer(msg.sender, stakeInfo.amount);
+        _TOKEN.safeTransfer(msg.sender, stakeInfo.amount);
     }
 
     function adminWithdraw() external adminOnly {
-        _xGRAV.safeTransfer(msg.sender, _xGRAV.balanceOf(address(this)));
+        _xTOKEN.transfer(msg.sender, _xGRAV.balanceOf(address(this)));
     }
 
     function pause() external adminOnly {
@@ -83,7 +83,7 @@ contract TokenLock is ReentrancyGuard {
         paused = false;
     }
  
-    function transferAdminRole(address _newAdmin) external {
+    function transferAdminRole(address _newAdmin) external adminOnly {
         admin = _newAdmin;
     }
 }
