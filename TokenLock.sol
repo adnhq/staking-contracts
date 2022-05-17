@@ -72,7 +72,7 @@ contract TokenLock is ReentrancyGuard {
     }
 
     function adminWithdraw() external adminOnly {
-        _xTOKEN.transfer(msg.sender, _xGRAV.balanceOf(address(this)));
+        _xTOKEN.transfer(msg.sender, _xTOKEN.balanceOf(address(this)));
     }
 
     function pause() external adminOnly {
