@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 contract TokenLock is ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Counters for Counters.Counter;
-    Counters.Counter private _lockId;
+    Counters.Counter private _lockIds;
 
     struct StakeInfo {
         uint amount;
@@ -29,12 +29,12 @@ contract TokenLock is ReentrancyGuard {
     mapping (uint => StakeInfo) private _idToStakeInfo; 
     
     modifier adminOnly() {
-        require(msg.sender == admin);
+        require(msg.sender == admin, "TokenLock: must be admin");
         _;
     }
     
     modifier notPaused() {
-        require(paused == false);
+        require(paused == false, "TokenLock: contract paused");
         _;
     }
 
@@ -42,11 +42,12 @@ contract TokenLock is ReentrancyGuard {
         admin = _admin; 
     }
 
-    function lockTokens(uint _amount) external nonReentrant notPaused returns (uint lockId) {
-        require(_amount > 0, "Invalid amount");
-        _lockId.increment();
-        lockId = _lockId.current();
-        _idToStakeInfo[lockId] = StakeInfo({
+    function lockTokens(uint _amount) external nonReentrant notPaused returns (uint currentId) {
+        require(_amount > 0, "TokenLock: amount must be higher");
+        _lockIds.increment();
+        currentId = _lockIds.current();
+        
+        _idToStakeInfo[currentId] = StakeInfo({
             staker: msg.sender,
             amount: _amount,
             lockedUntil: block.timestamp + STAKING_PERIOD,
@@ -56,22 +57,22 @@ contract TokenLock is ReentrancyGuard {
         _xTOKEN.safeTransferFrom(msg.sender, address(this), _amount);
     } 
 
-    function getStakeInfo(uint _id) external view returns (StakeInfo memory) {
-        if(msg.sender != admin) require(msg.sender == _idToStakeInfo[_id].staker, "You are not the staker of this ID");
-        return _idToStakeInfo[_id];
+    function getStakeInfo(uint lockId) external view returns (StakeInfo memory) {
+        require(msg.sender == _idToStakeInfo[lockId].staker || msg.sender == admin, "TokenLock: you are not the staker");
+        return _idToStakeInfo[lockId];
     }
 
-    function withdrawTokens(uint _id) external nonReentrant notPaused {
-        StakeInfo storage stakeInfo = _idToStakeInfo[_id];
-        require(msg.sender == stakeInfo.staker, "You are not the staker of this ID");
-        require(block.timestamp > stakeInfo.lockedUntil, "Tokens still locked");
-        require(!stakeInfo.unstaked);
-        stakeInfo.unstaked = true;
+    function unlockTokens(uint lockId) external nonReentrant notPaused {
+        StakeInfo memory stakeInfo = _idToStakeInfo[lockId];
+        require(msg.sender == stakeInfo.staker, "TokenLock: you are not the staker");
+        require(block.timestamp > stakeInfo.lockedUntil, "TokenLock: staking period still active");
+        require(!stakeInfo.unstaked, "TokenLock: already unstaked");
+        _idToStakeInfo[lockId].unstaked = true;
 
         _TOKEN.safeTransfer(msg.sender, stakeInfo.amount);
     }
 
-    function adminWithdraw() external adminOnly {
+    function withdraw() external adminOnly {
         _xTOKEN.transfer(msg.sender, _xTOKEN.balanceOf(address(this)));
     }
 
