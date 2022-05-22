@@ -19,7 +19,7 @@ contract TokenLock is ReentrancyGuard {
         bool unstaked;
     }
 
-    uint public constant STAKING_PERIOD = 4 * 30 days;
+    uint88 public constant STAKING_PERIOD = 4 * 30 days;
     address public admin; 
     bool public paused; 
     
